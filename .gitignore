@@ -1,0 +1,32 @@
+# 虚拟环境
+.venv/
+venv/
+
+# 模型权重（约 200MB，按需下载，不进版本库）
+models/*.pt
+models/*.part
+models/*.onnx
+
+# 处理结果与临时数据
+output/
+.session/
+.cache/
+.tmpdl/
+samples/*_inpaint*
+
+# 日志
+*.log
+iopaint.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 编辑器
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

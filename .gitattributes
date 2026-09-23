@@ -1,0 +1,30 @@
+# ---------------------------------------------------------------
+# 换行符策略
+#
+# 这个项目在 Windows 上开发，但 .bat 是 GBK 编码 + CRLF 换行，
+# 而 git 默认会做换行符转换 —— 一旦把 CRLF 转成 LF，批处理就会
+# 出问题；如果把 GBK 字节当 UTF-8 处理，中文还会被拆碎。
+#
+# 所以：普通文本按 text=auto 处理，.bat 一律按二进制原样存取。
+# ---------------------------------------------------------------
+
+# 文本文件：入库统一 LF，检出时由 git 按平台决定
+* text=auto
+
+# Windows 批处理：GBK 编码 + CRLF，绝对不能做任何转换
+*.bat -text
+*.cmd -text
+
+# 二进制资源
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pt binary
+*.onnx binary
+*.npy binary
+
+# SVG 是文本，保留 diff 能力
+*.svg text

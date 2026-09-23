@@ -1,0 +1,76 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "启动 CleanPlate（F5）",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/start.py",
+      "args": ["serve", "--open"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "justMyCode": false,
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+    {
+      "name": "启动（不自动开浏览器）",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/start.py",
+      "args": ["serve"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "justMyCode": false,
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+    {
+      "name": "强制用 CPU 跑（排查显卡问题用）",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/start.py",
+      "args": ["serve", "--open"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "justMyCode": false,
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "IOPAINT_DEVICE": "cpu"
+      }
+    },
+    {
+      "name": "下载 LaMa 模型",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/start.py",
+      "args": ["download"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "justMyCode": false,
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+    {
+      "name": "查看设备与模型状态",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/start.py",
+      "args": ["info"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "justMyCode": false,
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  ]
+}

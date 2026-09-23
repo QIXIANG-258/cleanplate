@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CleanPlate · 去杂物</title>
+<link rel="icon" href="/static/favicon.svg">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ───────────────────────── 顶栏 ───────────────────────── -->
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <span class="brand-name">CleanPlate</span>
+  </div>
+  <div class="filemeta" id="filemeta">
+    <span class="fname" id="fname">未打开图片</span>
+    <span class="fsep" id="fsep"></span>
+    <span class="fdim" id="fdim"></span>
+  </div>
+  <div class="topright">
+    <span class="chip" id="chipDevice">检测中…</span>
+    <span class="chip chip-warn" id="chipModel" hidden>模型准备中</span>
+  </div>
+</header>
+
+<!-- ───────────────────────── 左栏 ───────────────────────── -->
+<nav class="rail">
+  <button class="tool" id="btnOpen" title="打开图片（本地目录）">
+    <svg viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2h7A1.5 1.5 0 0 1 19 8.5v9A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5z"/></svg>
+    <span>打开</span>
+  </button>
+
+  <div class="rail-sep"></div>
+
+  <button class="tool active" id="btnBrush" title="画笔 (B)">
+    <svg viewBox="0 0 24 24"><path d="M4 20c3 .5 5-1 5-4 0-1.6 1.2-3 2.8-3H15l5-5-2-2-5 5v3.2c0 1.6-1.4 2.8-3 2.8-3 0-4.5 2-5 4z"/></svg>
+    <span>画笔</span>
+  </button>
+
+  <button class="tool" id="btnEraser" title="橡皮 (E)">
+    <svg viewBox="0 0 24 24"><path d="M15.5 4.5 20 9a1.5 1.5 0 0 1 0 2.1L13 18H8l-3.5-3.5a1.5 1.5 0 0 1 0-2.1L11 5a1.5 1.5 0 0 1 2.1 0zM9 18h11"/></svg>
+    <span>橡皮</span>
+  </button>
+
+  <button class="tool" id="btnClear" title="清空涂抹">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    <span>清空</span>
+  </button>
+
+  <div class="rail-sep"></div>
+
+  <button class="tool" id="btnUndo" title="撤销 (Ctrl+Z)" disabled>
+    <svg viewBox="0 0 24 24"><path d="M9 14H5V10M5.6 13.4a7 7 0 1 0 1.6-6.2L5 9"/></svg>
+    <span>撤销</span>
+  </button>
+
+  <button class="tool" id="btnRedo" title="重做 (Ctrl+Y)" disabled>
+    <svg viewBox="0 0 24 24"><path d="M15 14h4V10M18.4 13.4a7 7 0 1 1-1.6-6.2L19 9"/></svg>
+    <span>重做</span>
+  </button>
+
+  <button class="tool" id="btnReset" title="还原到原图" disabled>
+    <svg viewBox="0 0 24 24"><path d="M12 5v7l5 3M12 21a9 9 0 1 0-9-9"/></svg>
+    <span>还原</span>
+  </button>
+
+  <div class="rail-spacer"></div>
+
+  <button class="tool" id="btnBrushPanel" title="笔刷与参数">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>
+    <span>设置</span>
+  </button>
+
+  <button class="tool" id="btnSave" title="保存 (Ctrl+S)" disabled>
+    <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v6h7V4M8 20v-6h8v6"/></svg>
+    <span>保存</span>
+  </button>
+</nav>
+
+<!-- ───────────────────────── 画布 ───────────────────────── -->
+<main class="stage" id="stage">
+  <canvas id="view"></canvas>
+
+  <div class="empty" id="empty">
+    <div class="empty-inner">
+      <h1>把照片拖进来</h1>
+      <p>或按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴 · 也可以点左侧「打开」浏览本地目录</p>
+      <button class="btn-primary" id="btnOpenBig">打开图片</button>
+    </div>
+  </div>
+
+  <div class="compare-handle" id="compareHandle" hidden><span></span></div>
+</main>
+
+<!-- ───────────────────────── 底部操作条 ───────────────────────── -->
+<footer class="actionbar" id="actionbar" hidden>
+  <button class="btn-ghost" id="btnCompare" title="按住对比原图 / 点击固定">对比</button>
+  <span class="ab-sep"></span>
+  <span class="hint">涂满要去掉的东西，然后</span>
+  <button class="btn-go" id="btnRun">
+    <span class="go-label">修复</span>
+    <kbd>Enter</kbd>
+  </button>
+</footer>
+
+<!-- ───────────────────────── 状态栏 ───────────────────────── -->
+<div class="statusbar" id="statusbar">
+  <span id="stLeft">就绪</span>
+  <span class="sb-right">
+    <span id="stZoom">—</span>
+    <span class="sb-sep"></span>
+    <span id="stTime">—</span>
+  </span>
+</div>
+
+<!-- ───────────────────────── 笔刷/参数浮层 ───────────────────────── -->
+<div class="popover" id="popBrush" hidden>
+  <div class="pop-title">笔刷</div>
+  <label class="field">
+    <span>大小 <b id="lblSize">60</b> px</span>
+    <input type="range" id="rngSize" min="4" max="600" value="60" step="2">
+  </label>
+  <label class="field">
+    <span>硬度 <b id="lblHard">硬边</b></span>
+    <input type="range" id="rngHard" min="0" max="100" value="85" step="5">
+  </label>
+  <div class="pop-sep"></div>
+  <div class="pop-title">修复参数</div>
+  <label class="field">
+    <span>边缘外扩 <b id="lblExpand">6</b> px</span>
+    <input type="range" id="rngExpand" min="0" max="40" value="6" step="1">
+  </label>
+  <label class="field">
+    <span>送模型长边上限 <b id="lblMaxSide">2560</b> px</span>
+    <input type="range" id="rngMaxSide" min="1024" max="4096" value="2560" step="128">
+  </label>
+  <label class="field row">
+    <input type="checkbox" id="chkTile" checked>
+    <span>分区域推理（只把涂到的区域按原分辨率送模型，大图清晰得多 —— 推荐开）</span>
+  </label>
+  <label class="field row">
+    <input type="checkbox" id="chkCv2">
+    <span>用 OpenCV 快速模式（无需模型，仅适合简单背景）</span>
+  </label>
+  <label class="field row">
+    <input type="checkbox" id="chkAutoClear" checked>
+    <span>修复后自动清空涂抹</span>
+  </label>
+  <div class="pop-hint">快捷键：<kbd>B</kbd> 画笔 · <kbd>E</kbd> 橡皮 · <kbd>[</kbd><kbd>]</kbd> 调笔刷 · <kbd>空格</kbd> 拖动画面 · <kbd>0</kbd> 适应窗口</div>
+</div>
+
+<!-- ───────────────────────── 保存浮层 ───────────────────────── -->
+<div class="popover pop-save" id="popSave" hidden>
+  <div class="pop-title">保存</div>
+  <label class="field row">
+    <input type="radio" name="saveTarget" value="output" checked>
+    <span>存到项目的 <code>output/</code> 目录</span>
+  </label>
+  <label class="field row">
+    <input type="radio" name="saveTarget" value="alongside" id="radAlongside">
+    <span>存到原图旁边（加 <code>_inpaint</code> 后缀）</span>
+  </label>
+  <div class="pop-sep"></div>
+  <label class="field">
+    <span>格式</span>
+    <select id="selFormat">
+      <option value="png">PNG（无损）</option>
+      <option value="jpg">JPEG（保留 EXIF，质量 95）</option>
+    </select>
+  </label>
+  <div class="pop-hint">任何情况下都不会覆盖你的原图。</div>
+  <button class="btn-primary full" id="btnSaveConfirm">保存</button>
+</div>
+
+<!-- ───────────────────────── 选片弹窗 ───────────────────────── -->
+<div class="modal" id="modalFiles" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="mh-title">打开图片</span>
+      <span class="modal-head-hint" id="modalHint">←→↑↓ 选择 · Enter 打开 · 双击直接打开 · Esc 关闭</span>
+      <button class="btn-mini" id="btnTogglePreview" title="显示 / 隐藏右侧大图">隐藏大图</button>
+      <button class="x" id="btnCloseFiles">×</button>
+    </div>
+    <div class="modal-path">
+      <button class="btn-mini" id="btnUp" title="上一级">↑</button>
+      <input type="text" id="pathInput" spellcheck="false">
+      <button class="btn-mini" id="btnGo" title="前往">前往</button>
+    </div>
+    <div class="modal-roots" id="roots"></div>
+
+    <div class="modal-split" id="modalSplit">
+      <!-- 左：文件区（列表 / 缩略图两种模式切换） -->
+      <div class="modal-list" id="fileList" tabindex="0"></div>
+
+      <!-- 右：大图预览 -->
+      <div class="modal-preview">
+        <div class="pv-stage" id="pvStage">
+          <img id="pvImg" alt="" hidden>
+          <div class="pv-hint" id="pvHint">
+            <div class="pv-hint-big">把鼠标移到文件名上</div>
+            <div>右边这里就会显示大图<br>方便挑出想修的那张</div>
+          </div>
+        </div>
+        <div class="pv-meta" id="pvMeta" hidden>
+          <div class="pv-text">
+            <div class="pv-name" id="pvName"></div>
+            <div class="pv-dim" id="pvDim"></div>
+          </div>
+          <button class="btn-primary" id="btnOpenSelected">打开这张</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── 加载遮罩 ───────────────────────── -->
+<div class="loading" id="loading" hidden>
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">处理中…</div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

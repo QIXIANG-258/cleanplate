@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "① 首次安装依赖",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/setup.bat",
+      "windows": { "command": "${workspaceFolder}\\scripts\\setup.bat" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "② 下载 LaMa 模型",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/start.py", "download"],
+      "windows": { "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe", "args": ["${workspaceFolder}\\start.py", "download"] },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "③ 启动界面",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/start.py", "serve", "--open"],
+      "windows": { "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe", "args": ["${workspaceFolder}\\start.py", "serve", "--open"] },
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "查看设备与模型状态",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["${workspaceFolder}/start.py", "info"],
+      "windows": { "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe", "args": ["${workspaceFolder}\\start.py", "info"] },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    }
+  ]
+}

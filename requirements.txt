@@ -1,0 +1,41 @@
+# ============================================================
+# IOPaint Studio 依赖（不含 PyTorch，单独装 —— 见下方说明）
+# ============================================================
+#
+# 【推荐】直接用一键脚本，它会自动帮你把 torch 也装好：
+#        双击 scripts\setup.bat          （显卡加速版）
+#        双击 scripts\setup.bat cpu      （纯 CPU 版）
+#
+# 【手动装】先装 PyTorch，再装本文件：
+#
+#   1) PyTorch（二选一）
+#      显卡加速版（NVIDIA，约 2.5 GB）：
+#        .venv\Scripts\python.exe -m pip install torch==2.6.0+cu124 ^
+#            --index-url https://download.pytorch.org/whl/cu124
+#      纯 CPU 版（约 200 MB，慢但轻）：
+#        .venv\Scripts\python.exe -m pip install torch==2.6.0 ^
+#            --index-url https://download.pytorch.org/whl/cpu
+#
+#   2) 其余依赖
+#       .venv\Scripts\python.exe -m pip install -r requirements.txt ^
+#           -i https://mirrors.aliyun.com/pypi/simple/
+#
+# ⚠ 千万别用清华源（pypi.tuna.tsinghua.edu.cn）：它会对 pip 返回 403，
+#   报错长这样 —— No matching distribution found for xxx（from versions: none）。
+#   阿里源 / 腾讯源 / 中科大源 / 官方源都正常。
+
+
+# ---- 图像处理 ----
+numpy>=2.0
+opencv-python-headless>=4.10
+Pillow>=10.0
+
+# ---- Web 服务 ----
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+requests>=2.31
+
+# ---- 工具 ----
+loguru>=0.7
+tqdm>=4.66
