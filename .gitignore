@@ -30,3 +30,6 @@ __pycache__/
 *.swp
 .DS_Store
 Thumbs.db
+
+# 分频带诊断的对比图（含真人照片裁切，不进仓库）
+对比_*.png

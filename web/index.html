@@ -137,6 +137,10 @@
     <span>送模型长边上限 <b id="lblMaxSide">2560</b> px</span>
     <input type="range" id="rngMaxSide" min="1024" max="4096" value="2560" step="128">
   </label>
+  <label class="field">
+    <span>颗粒强度 <b id="lblGrain">关</b><span class="fnote">补出来发干时才开</span></span>
+    <input type="range" id="rngGrain" min="0" max="2" value="0" step="0.1">
+  </label>
   <label class="field row">
     <input type="checkbox" id="chkTile" checked>
     <span>分区域推理（只把涂到的区域按原分辨率送模型，大图清晰得多 —— 推荐开）</span>

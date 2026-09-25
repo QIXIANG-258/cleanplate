@@ -121,6 +121,41 @@ def main() -> int:
     changed = np.abs(out.astype(int) - img.astype(int))[inside].mean()
     check("选区内被修复", changed > 5, f"平均改动 {changed:.1f}")
 
+    # ---- 2b. 颗粒再注入
+    print("\n[2b] 颗粒再注入")
+    from app.grain import _local_sigma, estimate_grain, inject_grain
+
+    est = estimate_grain(img, alpha, ring=12)
+    check("能从选区周围估出颗粒强度", est["value"] > 0,
+          f"value={est['value']:.5f} n={est['n']}")
+
+    # 强度 0 == 完全不动。必须是「逐像素相同」，不是「差不多」。
+    g_off = inject_grain(img, out, alpha, strength=0.0)
+    check("strength=0 时输出逐像素不变", np.array_equal(g_off, out))
+
+    # 开颗粒之后，选区外仍然 bit 级不变 —— 这是不可退让的底线。
+    g_on = inject_grain(img, out, alpha, strength=1.0)
+    check("开启颗粒后选区外仍 bit 级不变", np.array_equal(g_on[far], img[far]),
+          "颗粒漏到选区外了")
+
+    # 选区内的高频能量要被抬起来，这才说明「糊感」真的被补偿了。
+    inside_b = alpha > 100
+    sig_before = float(np.median(_local_sigma(cv2.cvtColor(out, cv2.COLOR_RGB2GRAY))[inside_b]))
+    sig_after = float(np.median(_local_sigma(cv2.cvtColor(g_on, cv2.COLOR_RGB2GRAY))[inside_b]))
+    check("选区内高频能量被抬升", sig_after > sig_before * 1.05,
+          f"{sig_before:.5f} -> {sig_after:.5f}")
+
+    # 强度越大，颗粒越强（单调性）。滑块才有意义。
+    g_hi = inject_grain(img, out, alpha, strength=2.0)
+    sig_hi = float(np.median(_local_sigma(cv2.cvtColor(g_hi, cv2.COLOR_RGB2GRAY))[inside_b]))
+    check("强度与颗粒量单调递增", sig_hi > sig_after,
+          f"0.0={sig_before:.5f} 1.0={sig_after:.5f} 2.0={sig_hi:.5f}")
+
+    # 整条 inpaint 链路走通（cv2 模式 + 颗粒）
+    out_g, _ = eng.inpaint(img, alpha, expand=4, method="cv2", grain=1.0)
+    check("inpaint(grain=1.0) 全链路可用", out_g.shape == img.shape and not np.array_equal(out_g, out))
+    check("全链路下选区外仍 bit 级不变", np.array_equal(out_g[far], img[far]))
+
     # ---- 3. 空 mask 应当报错
     print("\n[3] 边界情况")
     empty = np.zeros((h, w), np.uint8)

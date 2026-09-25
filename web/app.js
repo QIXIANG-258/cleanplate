@@ -17,6 +17,7 @@ const S = {
   brush: { size: 60, hardness: 85, mode: 'brush' },
   expand: 6,
   maxSide: 2560,
+  grain: 0,          // 默认关。实测补全区主要问题不在颗粒层（见 config.py 注释）
   useCv2: false,
   tile: true,
   autoClear: true,
@@ -709,6 +710,7 @@ async function runInpaint() {
     fd.append('feather', '0.8');
     fd.append('method', S.useCv2 ? 'cv2' : 'lama');
     fd.append('tile', S.tile ? 'true' : 'false');
+    fd.append('grain', String(S.grain));
 
     const j = await api(`/api/session/${S.session.id}/inpaint`, { method: 'POST', body: fd });
 
@@ -937,6 +939,10 @@ $('rngHard').oninput = (e) => {
 };
 $('rngExpand').oninput = (e) => { S.expand = +e.target.value; $('lblExpand').textContent = S.expand; };
 $('rngMaxSide').oninput = (e) => { S.maxSide = +e.target.value; $('lblMaxSide').textContent = S.maxSide; };
+$('rngGrain').oninput = (e) => {
+  S.grain = +e.target.value;
+  $('lblGrain').textContent = S.grain === 0 ? '关' : S.grain.toFixed(1);
+};
 $('chkCv2').onchange = (e) => { S.useCv2 = e.target.checked; };
 $('chkTile').onchange = (e) => { S.tile = e.target.checked; };
 $('chkAutoClear').onchange = (e) => { S.autoClear = e.target.checked; };

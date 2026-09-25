@@ -199,6 +199,7 @@ async def api_session_inpaint(
     feather: float = Form(0.8),
     method: str = Form("lama"),
     tile: bool = Form(True),
+    grain: float = Form(config.DEFAULT_GRAIN),
 ):
     s = _need(sid)
     mask_bytes = await mask.read()
@@ -210,6 +211,7 @@ async def api_session_inpaint(
         result, elapsed = engine.inpaint(
             s.current, alpha, expand=max(0, int(expand)),
             max_side=max_side, feather=feather, method=method, tile=tile,
+            grain=max(0.0, float(grain)),
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

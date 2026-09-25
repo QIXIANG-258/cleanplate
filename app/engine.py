@@ -15,6 +15,7 @@ import numpy as np
 from loguru import logger
 
 from . import config
+from .grain import inject_grain
 from .imaging import pad_img_to_modulo, resize_max_size
 from .lama import LamaModel, ModelDownloader, cv2_inpaint
 
@@ -138,6 +139,7 @@ class InpaintEngine:
         feather: float = 0.8,
         method: str = "lama",
         tile: bool = True,
+        grain: float = config.DEFAULT_GRAIN,
     ) -> tuple[np.ndarray, float]:
         """去杂物主流程。
 
@@ -148,6 +150,7 @@ class InpaintEngine:
         feather   : 合成时边缘羽化强度（像素），0 表示硬边
         method    : lama（默认）/ cv2（零模型快速模式）
         tile      : True 走分区域推理（大图清晰得多），False 退回整图缩放
+        grain     : 颗粒再注入强度，0 表示关掉
 
         返回 (结果图, 耗时秒)。
         """
@@ -168,6 +171,9 @@ class InpaintEngine:
         # 2) OpenCV 快速模式，不碰模型
         if method == "cv2":
             out = cv2_inpaint(image_rgb, mask, radius=max(3, expand_eff))
+            # 快速模式补出来的更平滑，同样需要颗粒补偿
+            if grain and grain > 0:
+                out = inject_grain(image_rgb, out, mask, strength=grain)
             return self._composite(image_rgb, out, mask, feather), time.time() - t0
 
         # 3) 准备模型
@@ -182,12 +188,18 @@ class InpaintEngine:
         else:
             result_full = self._inpaint_full(image_rgb, mask, limit)
 
+        # 4.5) 颗粒再注入 —— 必须在合成**之前**做。
+        #      这样颗粒只会加在模型输出上，合成时选区外照样取原始像素，
+        #      「选区外 bit 级不变」这条底线不会被破坏。
+        if grain and grain > 0:
+            result_full = inject_grain(image_rgb, result_full, mask, strength=grain)
+
         # 5) 只在选区合成，选区外保持原始像素完全不变
         out = self._composite(image_rgb, result_full, mask, feather)
         elapsed = time.time() - t0
         logger.info(
             f"修复完成 {w}x{h}（{method}{'/' + ('分区' if tile else '整图')}，"
-            f"耗时 {elapsed:.2f}s，设备 {self.device}）"
+            f"颗粒 {grain:g}，耗时 {elapsed:.2f}s，设备 {self.device}）"
         )
         return out, elapsed
 

@@ -247,6 +247,7 @@ kbd{
 .field{display:block;margin-bottom:12px}
 .field>span{display:block;font-size:11.5px;color:var(--fg-dim);margin-bottom:6px}
 .field>span b{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600}
+.field>span .fnote{float:right;color:var(--fg-mute);font-size:10.5px;font-weight:400;letter-spacing:.02em}
 .field.row{display:flex;align-items:flex-start;gap:8px;cursor:pointer}
 .field.row>span{margin:0;font-size:11.5px;line-height:1.45}
 .field code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent-2)}

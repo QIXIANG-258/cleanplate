@@ -316,6 +316,71 @@ function getJSON(url) {
     })()`);
     ok(typeof hashNow === 'number' && hashNow !== 0, '画布上的图已更新并渲染', `hash=${hashNow}`);
 
+    // ---------- 颗粒强度滑块 ----------
+    // 光看 DOM 值没用 —— 要确认「拖了滑块之后，真正发出去的请求里带上了这个值」。
+    // 所以这里套一层 fetch 拦截，抓最后一次 inpaint 请求的 FormData。
+    log('\n[3c] 颗粒强度滑块');
+    await clickOn('#btnBrushPanel');
+    await waitFor(`document.getElementById('popBrush').hidden === false`, '设置浮层弹出', 5000);
+
+    const grainInit = await evaluate(`JSON.stringify({
+      val: document.getElementById('rngGrain').value,
+      label: document.getElementById('lblGrain').textContent,
+      state: S.grain
+    })`);
+    const gi = JSON.parse(grainInit);
+    ok(gi.val === '0' && gi.state === 0, '颗粒滑块默认关闭', `→ ${gi.val}`);
+    ok(gi.label === '关', '关闭时标签显示「关」', `→ "${gi.label}"`);
+
+    // 真实拖动：把 range 的值设好再派发 input 事件（等价于用户拖到位）
+    const setGrain = async (v) => {
+      await evaluate(`(() => {
+        const el = document.getElementById('rngGrain');
+        el.value = '${v}';
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      return await evaluate(`JSON.stringify({state: S.grain, label: document.getElementById('lblGrain').textContent})`);
+    };
+    const g15 = JSON.parse(await setGrain('1.5'));
+    ok(g15.state === 1.5, '拖动后 S.grain 同步为 1.5', `→ ${g15.state}`);
+    ok(g15.label === '1.5', '标签跟着更新', `→ "${g15.label}"`);
+    const g0 = JSON.parse(await setGrain('0'));
+    ok(g0.state === 0 && g0.label === '关', '拉到 0 时显示「关」', `→ "${g0.label}"`);
+    const g06 = JSON.parse(await setGrain('0.6'));
+    ok(g06.state === 0.6 && g06.label === '0.6', '能调到中间档', `→ "${g06.label}"`);
+
+    // 抓请求，验证 grain 真的进了 FormData
+    await evaluate(`(() => {
+      if (window.__origFetch) return;
+      window.__origFetch = window.fetch;
+      window.__lastInpaintForm = null;
+      window.fetch = function (url, opts) {
+        if (typeof url === 'string' && /\\/inpaint$/.test(url) && opts && opts.body instanceof FormData) {
+          const o = {};
+          for (const [k, v] of opts.body.entries()) o[k] = (typeof v === 'string') ? v : '<blob>';
+          window.__lastInpaintForm = o;
+        }
+        return window.__origFetch.apply(this, arguments);
+      };
+    })()`);
+    await evaluate(`S.grain = 1.3`);
+    await clickOn('#btnBrushPanel');
+    await sleep(200);
+    await evaluate(`(async () => {
+      // 重新涂一笔，因为前面修复后 mask 被自动清空了
+      const c = S.mask.getContext('2d');
+      c.strokeStyle = 'rgba(255,176,32,0.62)'; c.lineWidth = 40; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(300, 300); c.lineTo(360, 320); c.stroke();
+      S.maskDirty = true;
+    })()`);
+    await clickOn('#btnRun');
+    await waitFor(`S.busy === false && window.__lastInpaintForm !== null`, '第二次修复完成', 180000);
+    const f2 = JSON.parse(await evaluate(`JSON.stringify(window.__lastInpaintForm)`));
+    log(`    发出去的参数：expand=${f2.expand} feather=${f2.feather} grain=${f2.grain} method=${f2.method}`);
+    ok(f2.grain === '1.3', 'grain 参数真的发到了后端', `→ ${f2.grain}`);
+    ok(f2.expand !== undefined && f2.method !== undefined, '其他参数未被破坏');
+    await evaluate(`(() => { if (window.__origFetch) { window.fetch = window.__origFetch; window.__origFetch = null; } })()`);
+
     // ---------- 撤销 ----------
     log('\n[5] Ctrl+Z 撤销（真实键盘事件）');
     await send('Input.dispatchKeyEvent', {
@@ -324,7 +389,7 @@ function getJSON(url) {
     await send('Input.dispatchKeyEvent', {
       type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2,
     });
-    await waitFor(`S.session.cursor === 0`, '撤销生效', 20000);
+    await waitFor(`S.session.cursor === 1`, '撤销生效', 20000);
     const afterUndo = await evaluate(`JSON.stringify({
       cursor: S.session.cursor,
       canUndo: !document.getElementById('btnUndo').disabled,
@@ -332,7 +397,7 @@ function getJSON(url) {
       elapsed: document.getElementById('stTime').textContent
     })`);
     const U = JSON.parse(afterUndo);
-    ok(U.cursor === 0, '撤销回到第 0 步');
+    ok(U.cursor === 1, '撤销回到第 1 步');
     ok(U.canRedo, '重做按钮变为可用');
 
     // ---------- 重做 ----------
@@ -343,8 +408,8 @@ function getJSON(url) {
     await send('Input.dispatchKeyEvent', {
       type: 'keyUp', key: 'y', code: 'KeyY', windowsVirtualKeyCode: 89, modifiers: 2,
     });
-    await waitFor(`S.session.cursor === 1`, '重做生效', 20000);
-    ok(true, '重做成功回到第 1 步');
+    await waitFor(`S.session.cursor === 2`, '重做生效', 20000);
+    ok(true, '重做成功回到第 2 步');
 
     // ---------- 保存 ----------
     log('\n[6] 保存');
