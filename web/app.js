@@ -32,6 +32,16 @@ const S = {
   busy: false,
   lastPos: null,
   pendingFile: null,
+
+  /* --- 智能选区（传统算法） --- */
+  tool: 'brush',        // brush | eraser | lasso | shrink | wand
+  edgeCost: null,       // 边缘代价图（懒构建，换图时清掉）
+  lassoPts: [],         // 磁性套索已确认的点（图像坐标）
+  lassoTip: null,       // 当前吸附到的点
+  boxStart: null,       // 粗框起点（图像坐标）
+  boxNow: null,         // 粗框当前点
+  selSnapRadius: 14,    // 吸附半径（屏幕像素）：越大越爱跳边
+  selTolerance: 28,     // 魔棒容差 0~120
 };
 
 const MASK_MAX_SIDE = 3072;   // mask 画布长边上限，兼顾精度与内存
@@ -145,8 +155,11 @@ function render() {
     vctx.restore();
   }
 
-  // 笔刷光标圆环
-  if (S.cursor.inside && !S.compare) {
+  // ---- 智能选区的实时预览 ----
+  if (!S.compare) drawSelectOverlay(x, y, scale);
+
+  // 笔刷光标圆环（只在画笔 / 橡皮下显示 —— 选区工具有自己的提示）
+  if (S.cursor.inside && !S.compare && (S.tool === 'brush' || S.tool === 'eraser')) {
     const r = (S.brush.size * scale) / 2;
     vctx.save();
     vctx.beginPath();
@@ -167,6 +180,56 @@ function render() {
 }
 
 /* ---------------------------------------------------------- 视图变换 */
+
+/**
+ * 画智能选区的预览：套索的吸附线、粗框的矩形。
+ * 这些只画在**视图层**上（vctx），不写进 mask —— 松手才落笔。
+ */
+function drawSelectOverlay(ox, oy, scale) {
+  const toScreen = (p) => ({ x: ox + p.x * scale, y: oy + p.y * scale });
+
+  // 磁性套索：已确认的路径 + 到光标的橡皮筋
+  if (S.lassoing && S.lassoPts.length) {
+    vctx.save();
+    vctx.strokeStyle = 'rgba(255,176,32,.95)';
+    vctx.lineWidth = 1.6;
+    vctx.setLineDash([]);
+    vctx.beginPath();
+    const p0 = toScreen(S.lassoPts[0]);
+    vctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < S.lassoPts.length; i++) {
+      const p = toScreen(S.lassoPts[i]);
+      vctx.lineTo(p.x, p.y);
+    }
+    vctx.stroke();
+
+    // 起点标记（提示「回到这里闭合」）
+    vctx.fillStyle = 'rgba(255,176,32,.95)';
+    vctx.beginPath();
+    vctx.arc(p0.x, p0.y, 4, 0, Math.PI * 2);
+    vctx.fill();
+    vctx.strokeStyle = 'rgba(0,0,0,.6)';
+    vctx.lineWidth = 1.5;
+    vctx.stroke();
+    vctx.restore();
+  }
+
+  // 粗框：显示待收缩的矩形 + 中心提示
+  if (S.boxing && S.boxStart && S.boxNow) {
+    const a = toScreen(S.boxStart), b = toScreen(S.boxNow);
+    const rx = Math.min(a.x, b.x), ry = Math.min(a.y, b.y);
+    const rw = Math.abs(b.x - a.x), rh = Math.abs(b.y - a.y);
+    vctx.save();
+    vctx.strokeStyle = 'rgba(255,176,32,.95)';
+    vctx.lineWidth = 1.5;
+    vctx.setLineDash([6, 4]);
+    vctx.strokeRect(rx, ry, rw, rh);
+    vctx.setLineDash([]);
+    vctx.fillStyle = 'rgba(255,176,32,.08)';
+    vctx.fillRect(rx, ry, rw, rh);
+    vctx.restore();
+  }
+}
 
 function fitToWindow() {
   if (!S.img) return;
@@ -205,6 +268,13 @@ function resetMask() {
   c.width = Math.max(1, Math.round(S.img.width * S.maskScale));
   c.height = Math.max(1, Math.round(S.img.height * S.maskScale));
   S.mask = c;
+  // 换图后原来的边缘代价图就不能用了（尺寸/内容都变了）
+  S.edgeCost = null;
+  // 新画布是空的 —— 这里必须把 dirty 清掉。
+  // 否则上一张图涂完直接开下一张，按 Enter 会拿这张空 mask 去修复，
+  // 结果「什么都没涂也能点修复」，服务端还会白跑一次推理。
+  S.maskDirty = false;
+  resetSelectState();
   render();
 }
 
@@ -261,6 +331,35 @@ stage.addEventListener('pointerdown', (e) => {
     return;
   }
 
+  /* ---- 智能选区工具 ---- */
+  if (S.tool === 'lasso') {
+    const p = screenToImage(l.x, l.y);
+    const cm = edgeMap();
+    const c = { x: p.x * cm.scale / S.maskScale, y: p.y * cm.scale / S.maskScale };
+    const snapped = SEL.snapPoint(cm, c.x, c.y, S.selSnapRadius);
+    const pt = fromCM(snapped.x, snapped.y);
+    S.lassoPts = [pt];
+    S.lassoTip = pt;
+    capturePointer(stage, e.pointerId);
+    S.lassoing = true;
+    render();
+    return;
+  }
+  if (S.tool === 'shrink') {
+    const p = screenToImage(l.x, l.y);
+    S.boxStart = p;
+    S.boxNow = p;
+    capturePointer(stage, e.pointerId);
+    S.boxing = true;
+    render();
+    return;
+  }
+  if (S.tool === 'wand') {
+    // 魔棒：点一下就完事，不需要拖动
+    doMagicWand(screenToImage(l.x, l.y));
+    return;
+  }
+
   S.painting = true;
   S.lastPos = l;
   capturePointer(stage, e.pointerId);
@@ -289,6 +388,30 @@ stage.addEventListener('pointermove', (e) => {
     return;
   }
 
+  /* ---- 磁性套索：移动时持续吸附并追点 ---- */
+  if (S.lassoing && S.lassoPts.length) {
+    const p = screenToImage(l.x, l.y);
+    const cm = edgeMap();
+    const c = { x: p.x * cm.scale / S.maskScale, y: p.y * cm.scale / S.maskScale };
+    const snapped = SEL.snapPoint(cm, c.x, c.y, S.selSnapRadius);
+    const pt = fromCM(snapped.x, snapped.y);
+    const last = S.lassoPts[S.lassoPts.length - 1];
+    // 离上一个点够远才记一个，避免点上万个把内存吃满
+    if (Math.hypot(pt.x - last.x, pt.y - last.y) > 3 / S.maskScale) {
+      S.lassoPts.push(pt);
+    }
+    S.lassoTip = pt;
+    render();
+    return;
+  }
+
+  /* ---- 粗框：记录当前角点 ---- */
+  if (S.boxing && S.boxStart) {
+    S.boxNow = screenToImage(l.x, l.y);
+    render();
+    return;
+  }
+
   if (S.img) render();
 });
 
@@ -298,6 +421,27 @@ function endInteract(e) {
     S.panning = false;
     stage.classList.remove('panning');
   }
+
+  /* ---- 套索收尾：闭合路径并填充 ---- */
+  if (S.lassoing) {
+    S.lassoing = false;
+    if (S.lassoPts.length >= 3) {
+      fillPolygon(S.lassoPts);
+    }
+    resetSelectState();
+    render();
+  }
+
+  /* ---- 粗框收尾：收缩到物体 ---- */
+  if (S.boxing) {
+    S.boxing = false;
+    if (S.boxStart && S.boxNow) {
+      doShrink(S.boxStart, S.boxNow);
+    }
+    resetSelectState();
+    render();
+  }
+
   S.lastPos = null;
   try { stage.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
 }
@@ -305,6 +449,54 @@ stage.addEventListener('pointerup', endInteract);
 stage.addEventListener('pointercancel', endInteract);
 stage.addEventListener('pointerleave', () => { S.cursor.inside = false; render(); });
 stage.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ---------------------------------------------------------- 选区操作实现 */
+
+/** 粗框收缩：把矩形收缩到里面的物体轮廓 */
+function doShrink(a, b) {
+  const cm = edgeMap();
+  const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+  const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+  if (x1 - x0 < 4 || y1 - y0 < 4) return;
+
+  // 图像坐标 -> 代价图坐标
+  const k = cm.scale / S.maskScale;
+  const rect = { x0: x0 * k, y0: y0 * k, x1: x1 * k, y1: y1 * k };
+
+  const res = SEL.shrinkToObject(cm, rect);
+  if (!res) return;
+
+  if (res.inside) {
+    // 收缩成功：填收缩后的区域
+    fillInsideMap(res, { x: res.x0, y: res.y0 }, cm.scale / S.maskScale);
+  } else {
+    // 长不开时不能退回「填满原框」—— 那就等于框选没起作用，用户会觉得工具坏了。
+    // 退而求其次：填一个内缩的矩形（砍掉 18%），至少比手画的框更收敛。
+    const inset = 0.18;
+    const dx = (x1 - x0) * inset, dy = (y1 - y0) * inset;
+    const ctx = maskCtx();
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(
+      Math.round((x0 + dx) * S.maskScale), Math.round((y0 + dy) * S.maskScale),
+      Math.round((x1 - x0 - dx * 2) * S.maskScale), Math.round((y1 - y0 - dy * 2) * S.maskScale)
+    );
+    ctx.restore();
+    S.maskDirty = true;
+  }
+}
+
+/** 魔棒：点一下选中颜色相近的连通区域 */
+function doMagicWand(p) {
+  const cm = edgeMap();
+  const k = cm.scale / S.maskScale;
+  const x = Math.round(p.x * k), y = Math.round(p.y * k);
+  const tol = S.selTolerance;
+  const res = SEL.magicWand(cm, x, y, tol);
+  if (!res) return;
+  fillInsideMap(res, null, cm.scale / S.maskScale);
+}
 
 function applyBrush(ctx) {
   const w = Math.max(1, S.brush.size * S.maskScale);
@@ -342,6 +534,95 @@ function paintLine(from, to) {
   ctx.lineTo(to.x * S.maskScale, to.y * S.maskScale);
   ctx.stroke();
   S.maskDirty = true;
+}
+
+/* ---------------------------------------------------------- 智能选区 */
+
+/**
+ * 取边缘代价图（懒构建）。
+ * 换图 / 换尺寸都会清掉，所以这里判空即可。
+ * 构建要跑 Sobel，大图约 100~300ms，所以放在第一次用到时才做。
+ */
+function edgeMap() {
+  if (!S.edgeCost && S.img) {
+    S.edgeCost = SEL.buildCost(S.img, S.maskScale);
+  }
+  return S.edgeCost;
+}
+
+/** 屏幕坐标 -> 边缘代价图坐标 */
+function toCM(p) {
+  const cm = edgeMap();
+  return { x: p.x * cm.scale / S.maskScale, y: p.y * cm.scale / S.maskScale };
+}
+/** 边缘代价图坐标 -> 图像坐标（mask 坐标系） */
+function fromCM(x, y) {
+  const cm = edgeMap();
+  return { x: x / cm.scale * S.maskScale, y: y / cm.scale * S.maskScale };
+}
+
+/** 把一条闭合路径画进 mask（图像坐标数组） */
+function fillPolygon(pts) {
+  if (!S.mask || pts.length < 3) return;
+  const ctx = maskCtx();
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = ACCENT;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x * S.maskScale, pts[0].y * S.maskScale);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x * S.maskScale, pts[i].y * S.maskScale);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  S.maskDirty = true;
+}
+
+/** 把一张「二值 inside 图」放大填进 mask（用于粗框收缩 / 魔棒） */
+function fillInsideMap(res, origin, cmScale) {
+  if (!S.mask || !res) return;
+  const ctx = maskCtx();
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = ACCENT;
+
+  // 代价图坐标系 -> mask 坐标系
+  // res.w/res.h 是整个代价图的尺寸；origin 是子区域的左上角（仅在 shrink 时有意义）
+  const ox = origin ? origin.x : 0;
+  const oy = origin ? origin.y : 0;
+  const gridW = origin ? res.cw : res.w;
+  const gridH = origin ? res.ch : res.h;
+  const arr = res.inside;
+
+  // 直接按像素往 mask 上画方块太慢（900² = 81 万次），
+  // 改成「按行合并连续段」再一次性填充，快几十倍。
+  const sx = S.maskScale / cmScale;   // 一个网格单元对应多少 mask 像素
+  for (let y = 0; y < gridH; y++) {
+    let runStart = -1;
+    for (let x = 0; x <= gridW; x++) {
+      const on = x < gridW && arr[y * gridW + x];
+      if (on && runStart < 0) runStart = x;
+      if (!on && runStart >= 0) {
+        const mx = (ox + runStart) * sx;
+        const my = (oy + y) * sx;
+        ctx.fillRect(mx, my, (x - runStart) * sx + 1, sx + 1);
+        runStart = -1;
+      }
+    }
+  }
+  ctx.restore();
+  S.maskDirty = true;
+}
+
+/** 清掉当前选区工具的半成品状态 */
+function resetSelectState() {
+  S.lassoPts = [];
+  S.lassoTip = null;
+  S.boxStart = null;
+  S.boxNow = null;
+  S.lassoing = false;
+  S.boxing = false;
 }
 
 /* 滚轮缩放 */
@@ -855,11 +1136,20 @@ document.addEventListener('keydown', (e) => {
   switch (k) {
     case 'b': setMode('brush'); break;
     case 'e': setMode('eraser'); break;
+    case 'l': setMode('lasso'); break;
+    case 'k': setMode('shrink'); break;
+    case 'w': setMode('wand'); break;
     case '[': setBrushSize(S.brush.size * 0.82); break;
     case ']': setBrushSize(S.brush.size * 1.22); break;
     case '0': fitToWindow(); break;
     case 'enter': e.preventDefault(); runInpaint(); break;
     case 'escape':
+      // 选区工具进行中 -> 先取消当前这一笔，不清面板
+      if (S.lassoing || S.boxing) {
+        resetSelectState();
+        render();
+        break;
+      }
       $('popBrush').hidden = true;
       $('popSave').hidden = true;
       fileModal.hidden = true;
@@ -895,10 +1185,58 @@ document.addEventListener('paste', (e) => {
 /* ---------------------------------------------------------- 控件绑定 */
 
 function setMode(mode) {
-  S.brush.mode = mode;
-  $('btnBrush').classList.toggle('active', mode === 'brush');
-  $('btnEraser').classList.toggle('active', mode === 'eraser');
+  S.brush.mode = (mode === 'eraser') ? 'eraser' : 'brush';
+  S.tool = mode;
+  // 切工具时把半成品丢掉，避免套索的点残留到下次
+  resetSelectState();
+
+  const map = {
+    brush: 'btnBrush', eraser: 'btnEraser',
+    lasso: 'btnLasso', shrink: 'btnShrink', wand: 'btnWand',
+  };
+  for (const [k, id] of Object.entries(map)) {
+    const el = $(id);
+    if (el) el.classList.toggle('active', k === mode);
+  }
+  // 参数面板：画笔类显示笔刷参数，选区类显示选区参数
+  const isBrush = (mode === 'brush' || mode === 'eraser');
+  $('brushFields').hidden = !isBrush;
+  $('selFields').hidden = isBrush;
+
+  // 光标形状（选区工具用十字/方格，跟画笔区分开）
+  stage.classList.toggle('tool-lasso', mode === 'lasso');
+  stage.classList.toggle('tool-shrink', mode === 'shrink');
+  stage.classList.toggle('tool-wand', mode === 'wand');
+
+  updateStatusHint();
   render();
+}
+
+/** 状态栏左侧的提示语，跟着工具变 */
+function updateStatusHint() {
+  // 底部操作条那句提示也要跟着工具变 —— 切到魔棒了还说「涂满要去掉的东西」
+  // 会让人以为必须涂抹（这句原来是写死在 HTML 里的静态文字）。
+  const HINTS = {
+    brush: '涂满要去掉的东西，然后',
+    eraser: '擦掉多余的涂抹，然后',
+    lasso: '沿边缘圈出要去掉的东西，然后',
+    shrink: '框住要去掉的东西，然后',
+    wand: '点一下要去掉的东西，然后',
+  };
+  const actionHint = $('actionHint');
+  if (actionHint) actionHint.textContent = HINTS[S.tool] || HINTS.brush;
+
+  const el = $('stLeft');
+  if (!el) return;
+  if (!S.img) { el.textContent = '就绪'; return; }
+  const tip = {
+    brush: '涂抹要去掉的东西',
+    eraser: '擦掉多余的涂抹',
+    lasso: '沿着物体边缘拖动，回到起点闭合',
+    shrink: '随手框一块，松手自动收缩到物体',
+    wand: '点一下背景（或物体），自动选中一片',
+  }[S.tool] || '涂抹要去掉的东西';
+  el.textContent = tip;
 }
 
 function setBrushSize(v) {
@@ -912,6 +1250,9 @@ $('btnOpen').onclick = openFileModal;
 $('btnOpenBig').onclick = openFileModal;
 $('btnBrush').onclick = () => setMode('brush');
 $('btnEraser').onclick = () => setMode('eraser');
+$('btnLasso').onclick = () => setMode('lasso');
+$('btnShrink').onclick = () => setMode('shrink');
+$('btnWand').onclick = () => setMode('wand');
 $('btnClear').onclick = () => { clearMask(); toast('已清空涂抹'); };
 $('btnUndo').onclick = () => doAction('undo');
 $('btnRedo').onclick = () => doAction('redo');
@@ -942,6 +1283,14 @@ $('rngMaxSide').oninput = (e) => { S.maxSide = +e.target.value; $('lblMaxSide').
 $('rngGrain').oninput = (e) => {
   S.grain = +e.target.value;
   $('lblGrain').textContent = S.grain === 0 ? '关' : S.grain.toFixed(1);
+};
+$('rngSnap').oninput = (e) => {
+  S.selSnapRadius = +e.target.value;
+  $('lblSnap').textContent = S.selSnapRadius;
+};
+$('rngTol').oninput = (e) => {
+  S.selTolerance = +e.target.value;
+  $('lblTol').textContent = S.selTolerance;
 };
 $('chkCv2').onchange = (e) => { S.useCv2 = e.target.checked; };
 $('chkTile').onchange = (e) => { S.tile = e.target.checked; };

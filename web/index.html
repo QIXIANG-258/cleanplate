@@ -45,6 +45,39 @@
     <span>橡皮</span>
   </button>
 
+  <div class="rail-sep"></div>
+
+  <button class="tool" id="btnLasso" title="磁性套索：沿物体边缘拖动，回到起点闭合 (L)">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M12 3.2c4.4 0 8 2.6 8 5.8 0 1.9-1.3 3.6-3.4 4.7"/>
+      <path d="M16.6 13.7c-1.2.6-2.8.9-4.6.9-4.4 0-8-2.6-8-5.8 0-1.4.7-2.7 1.9-3.7"/>
+      <path d="M5.9 5.1C7.5 3.9 9.6 3.2 12 3.2"/>
+      <circle cx="16.6" cy="13.7" r="1.5"/>
+      <circle cx="5.9" cy="5.1" r="1.5"/>
+    </svg>
+    <span>套索</span>
+  </button>
+
+  <button class="tool" id="btnShrink" title="粗框：随手框一块，松手自动收缩到里面的物体 (K)">
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-dasharray="3 2.5"/>
+      <path d="M9.5 8.5h5.2a1.3 1.3 0 0 1 1.3 1.3v4.4a1.3 1.3 0 0 1-1.3 1.3H9.5a1.3 1.3 0 0 1-1.3-1.3V9.8a1.3 1.3 0 0 1 1.3-1.3z"/>
+    </svg>
+    <span>框选</span>
+  </button>
+
+  <button class="tool" id="btnWand" title="魔棒：点一下自动选中颜色相近的一片 (W)">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="m4.5 19.5 9.2-9.2"/>
+      <path d="m13.7 10.3 2.1-2.1"/>
+      <path d="M17.5 3v3.2M17.5 9.4v.1M14.6 5.1l1.6 1.6M19 5.1l-1.6 1.6"/>
+      <path d="M20.5 12.6v2.6M20.5 17.8v.1M18.2 14.3l1.3 1.3M22.2 14.3l-1.3 1.3"/>
+    </svg>
+    <span>魔棒</span>
+  </button>
+
+  <div class="rail-sep"></div>
+
   <button class="tool" id="btnClear" title="清空涂抹">
     <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
     <span>清空</span>
@@ -99,7 +132,7 @@
 <footer class="actionbar" id="actionbar" hidden>
   <button class="btn-ghost" id="btnCompare" title="按住对比原图 / 点击固定">对比</button>
   <span class="ab-sep"></span>
-  <span class="hint">涂满要去掉的东西，然后</span>
+  <span class="hint" id="actionHint">涂满要去掉的东西，然后</span>
   <button class="btn-go" id="btnRun">
     <span class="go-label">修复</span>
     <kbd>Enter</kbd>
@@ -118,15 +151,35 @@
 
 <!-- ───────────────────────── 笔刷/参数浮层 ───────────────────────── -->
 <div class="popover" id="popBrush" hidden>
-  <div class="pop-title">笔刷</div>
-  <label class="field">
-    <span>大小 <b id="lblSize">60</b> px</span>
-    <input type="range" id="rngSize" min="4" max="600" value="60" step="2">
-  </label>
-  <label class="field">
-    <span>硬度 <b id="lblHard">硬边</b></span>
-    <input type="range" id="rngHard" min="0" max="100" value="85" step="5">
-  </label>
+  <div id="brushFields">
+    <div class="pop-title">笔刷</div>
+    <label class="field">
+      <span>大小 <b id="lblSize">60</b> px</span>
+      <input type="range" id="rngSize" min="4" max="600" value="60" step="2">
+    </label>
+    <label class="field">
+      <span>硬度 <b id="lblHard">硬边</b></span>
+      <input type="range" id="rngHard" min="0" max="100" value="85" step="5">
+    </label>
+  </div>
+
+  <div id="selFields" hidden>
+    <div class="pop-title">智能选区</div>
+    <label class="field">
+      <span>吸附半径 <b id="lblSnap">14</b> px<span class="fnote">套索贴边</span></span>
+      <input type="range" id="rngSnap" min="4" max="40" value="14" step="1">
+    </label>
+    <label class="field">
+      <span>魔棒容差 <b id="lblTol">28</b><span class="fnote">越大选得越宽</span></span>
+      <input type="range" id="rngTol" min="4" max="120" value="28" step="2">
+    </label>
+    <div class="pop-hint">
+      <b>套索</b>：贴边拖动，回到起点闭合<br>
+      <b>框选</b>：粗略框一块，松手自动收缩<br>
+      <b>魔棒</b>：点一下选中颜色相近的一片
+    </div>
+  </div>
+
   <div class="pop-sep"></div>
   <div class="pop-title">修复参数</div>
   <label class="field">
@@ -153,7 +206,7 @@
     <input type="checkbox" id="chkAutoClear" checked>
     <span>修复后自动清空涂抹</span>
   </label>
-  <div class="pop-hint">快捷键：<kbd>B</kbd> 画笔 · <kbd>E</kbd> 橡皮 · <kbd>[</kbd><kbd>]</kbd> 调笔刷 · <kbd>空格</kbd> 拖动画面 · <kbd>0</kbd> 适应窗口</div>
+  <div class="pop-hint">快捷键：<kbd>B</kbd> 画笔 · <kbd>E</kbd> 橡皮 · <kbd>L</kbd> 套索 · <kbd>K</kbd> 框选 · <kbd>W</kbd> 魔棒 · <kbd>[</kbd><kbd>]</kbd> 调笔刷 · <kbd>空格</kbd> 拖动画面 · <kbd>0</kbd> 适应窗口</div>
 </div>
 
 <!-- ───────────────────────── 保存浮层 ───────────────────────── -->
@@ -228,6 +281,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
+<script src="/static/select.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

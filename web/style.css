@@ -130,6 +130,11 @@ kbd{
 .tool.active{background:var(--accent-soft);color:var(--accent);border-color:rgba(255,176,32,.24)}
 .tool:disabled{opacity:.28;cursor:default}
 
+/* 智能选区：光标形状区分工具，让「现在在做什么」一眼可见 */
+.stage.tool-lasso{cursor:crosshair}
+.stage.tool-shrink{cursor:crosshair}
+.stage.tool-wand{cursor:cell}
+
 /* ───────────────────────── 画布 ───────────────────────── */
 
 .stage{
