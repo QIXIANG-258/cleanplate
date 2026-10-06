@@ -1282,7 +1282,8 @@ $('rngExpand').oninput = (e) => { S.expand = +e.target.value; $('lblExpand').tex
 $('rngMaxSide').oninput = (e) => { S.maxSide = +e.target.value; $('lblMaxSide').textContent = S.maxSide; };
 $('rngGrain').oninput = (e) => {
   S.grain = +e.target.value;
-  $('lblGrain').textContent = S.grain === 0 ? '关' : S.grain.toFixed(1);
+  // 显示成增益百分比：强度 1.0 的含义是「补全区质感翻倍」，比裸数字直观
+  $('lblGrain').textContent = S.grain === 0 ? '关' : '+' + Math.round(S.grain * 100) + '%';
 };
 $('rngSnap').oninput = (e) => {
   S.selSnapRadius = +e.target.value;

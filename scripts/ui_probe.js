@@ -343,11 +343,13 @@ function getJSON(url) {
     };
     const g15 = JSON.parse(await setGrain('1.5'));
     ok(g15.state === 1.5, '拖动后 S.grain 同步为 1.5', `→ ${g15.state}`);
-    ok(g15.label === '1.5', '标签跟着更新', `→ "${g15.label}"`);
+    // 标签显示的是**增益百分比**（强度 1.0 = 补全区质感翻倍），不是裸数字。
+    // 见 app/grain.py 里 want 处的重标定说明。
+    ok(g15.label === '+150%', '标签跟着更新（显示增益百分比）', `→ "${g15.label}"`);
     const g0 = JSON.parse(await setGrain('0'));
     ok(g0.state === 0 && g0.label === '关', '拉到 0 时显示「关」', `→ "${g0.label}"`);
     const g06 = JSON.parse(await setGrain('0.6'));
-    ok(g06.state === 0.6 && g06.label === '0.6', '能调到中间档', `→ "${g06.label}"`);
+    ok(g06.state === 0.6 && g06.label === '+60%', '能调到中间档', `→ "${g06.label}"`);
 
     // 抓请求，验证 grain 真的进了 FormData
     await evaluate(`(() => {
