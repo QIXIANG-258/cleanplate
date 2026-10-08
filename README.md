@@ -522,9 +522,15 @@ set IOPAINT_PORT=9000
 ## 九、出处与许可
 
 - 本项目（CleanPlate）以 **MIT 许可**发布，见 [LICENSE](LICENSE)
-- 模型与推理思路来自 [IOPaint](https://github.com/Sanster/IOPaint)（原 LaMa Cleaner），Apache-2.0
-- LaMa 论文：*Resolution-robust Large Mask Inpainting with Fourier Convolutions*（Suvorov et al., 2021）
-- 权重文件由 IOPaint 作者托管在 GitHub Releases
+- 衍生内容与第三方归属的完整说明见 [NOTICE](NOTICE)
+- 推理实现参照 [IOPaint](https://github.com/Sanster/IOPaint)（原 LaMa Cleaner），
+  Apache-2.0 —— 协议副本见 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)
+- LaMa 模型来自 [advimman/lama](https://github.com/advimman/lama)
+  （Samsung Research，Apache-2.0）
+- 论文：*Resolution-robust Large Mask Inpainting with Fourier Convolutions*
+  （Suvorov et al., WACV 2022）
+- **权重文件不随仓库分发**，首次运行时按需下载。托管方未声明权重自身的授权，
+  本项目只引用地址、不做再分发 —— 详见 [NOTICE](NOTICE)
 
 更详细的技术调研（PS 插件可行性、去杂物模型选型对比、实测数据）见
 [docs/去杂物技术选型与PS插件可行性研究.md](docs/去杂物技术选型与PS插件可行性研究.md)。
@@ -587,13 +593,13 @@ set IOPAINT_PORT=9000
 
 所以这一版转向「**改变输入质量**」—— 用智能选区把要补的面积掐到最小。
 
-#### 隐私
+#### 素材清理
 
-`samples/` 里的三张真人对比图已从**工作区和全部 git 历史**中移除
+`samples/` 下三张不适合公开分发的对比图已从**工作区和全部 git 历史**中移除
 （包括 `v0.01` / `v0.02` 两个标签指向的提交）。
 
-`.gitignore` 补上了真正能匹配的规则 —— 原规则写的是 `对比_*.png`，
-但实际文件是 `去伞_前后对比.jpg`，扩展名对不上（png vs jpg），
+`.gitignore` 同时补上了真正能匹配的规则 —— 原规则写的是 `对比_*.png`，
+但实际文件是 `.jpg`，扩展名对不上（png vs jpg），
 「看着对」了很久却一次都没拦住。
 
 #### 杂项
@@ -684,7 +690,7 @@ set IOPAINT_PORT=9000
 #### 杂项
 
 - 版本号 `0.01` → `0.02`
-- `.gitignore` 补充：诊断用的对比图（含真人照片裁切）不进仓库
+- `.gitignore` 补充：诊断产出的对比图不进仓库
 
 ---
 

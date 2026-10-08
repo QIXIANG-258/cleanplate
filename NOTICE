@@ -1,0 +1,45 @@
+CleanPlate
+Copyright (c) 2026 QIXIANG-258
+
+--------------------------------------------------------------------
+本项目以 MIT 许可发布（见 LICENSE）。
+但其中包含来自第三方开源项目的衍生内容，说明如下。
+--------------------------------------------------------------------
+
+1. LaMa 模型推理逻辑
+   -------------------
+   CleanPlate 的 LaMa 推理实现（app/lama.py、app/imaging.py、app/engine.py）
+   在接口设计与处理流程上参照了 IOPaint 项目：
+
+     IOPaint (原 LaMa Cleaner)
+     https://github.com/Sanster/IOPaint
+     Copyright (c) IOPaint contributors
+     Licensed under the Apache License, Version 2.0
+
+   本项目的实现是精简重写版 —— 去掉了其 Gradio / diffusers /
+   transformers 依赖，只保留了模型加载、前向推理、补边与归一化部分。
+   协议副本见 LICENSES/Apache-2.0.txt。
+
+2. LaMa 模型架构与论文
+   -------------------
+   LaMa: Resolution-robust Large Mask Inpainting with Fourier Convolutions
+   Suvorov et al., WACV 2022
+   https://github.com/advimman/lama
+   Copyright (c) 2021 Samsung Research
+   Licensed under the Apache License, Version 2.0
+
+3. 模型权重
+   -------------------
+   权重文件 big-lama.pt **不包含在本仓库中**，由使用者首次运行时
+   从第三方托管地址下载：
+
+     https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt
+     https://huggingface.co/smartywu/big-lama
+
+   注意：上述托管仓库未声明权重文件自身的授权条款。本项目仅引用
+   该地址而不做再分发，使用者需自行确认其使用场景是否符合要求。
+
+--------------------------------------------------------------------
+以上第三方内容的版权归各自作者所有，并按各自的许可条款提供。
+本项目对这些内容的使用不构成任何形式的担保。
+--------------------------------------------------------------------
