@@ -274,8 +274,9 @@ def inject_grain(
     rng = np.random.default_rng(seed)
     layer = _grain_layer(image, mask, region, patch, win, rng)
 
-    # 把颗粒层本身归一化到「单位强度」：让它的灰度局部标准差恰好等于 1/255。
-    # 有了这个统一的基准，后面的倍率才有意义（否则层里的绝对量纲不可控）。
+    # 把颗粒层归一化到「单位强度」：让 _local_sigma(layer) 恰好等于 1.0
+    # （_local_sigma 返回值是「占满量程的比例」，即已除以 255）。
+    # 有了这个统一基准，后面的倍率才有意义（否则层里的绝对量纲不可控）。
     unit = float(np.median(_local_sigma(cv2.cvtColor(
         np.clip(layer, -255, 255).astype(np.float32), cv2.COLOR_RGB2GRAY
     ), win)[sel])) if sel.any() else 0.0
