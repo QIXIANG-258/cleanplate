@@ -6,5 +6,5 @@ LaMa 模型封装方式，但去掉了其庞大的 Web/Gradio 依赖，只保留
 「模型加载 + 前向推理 + 补边/归一化」逻辑。
 """
 
-__version__ = "0.03"
+__version__ = "0.03_2"
 __app_name__ = "CleanPlate"
